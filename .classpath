@@ -9,5 +9,8 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.7"/>
+	<classpathentry kind="lib" path="jpct/lib/slick2d/lib/jogg-0.0.7.jar"/>
+	<classpathentry kind="lib" path="jpct/lib/slick2d/lib/jorbis-0.0.15.jar"/>
+	<classpathentry kind="lib" path="jpct/lib/slick2d/lib/slick.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

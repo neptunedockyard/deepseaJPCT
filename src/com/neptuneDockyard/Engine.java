@@ -11,6 +11,12 @@ import java.awt.image.*;
 import com.threed.jpct.*;
 import com.threed.jpct.util.*;
 
+import org.lwjgl.openal.AL;
+import org.newdawn.slick.openal.Audio;
+import org.newdawn.slick.openal.AudioLoader;
+import org.newdawn.slick.openal.SoundStore;
+import org.newdawn.slick.util.ResourceLoader;
+
 public class Engine {
 
 	public Logger logger = new Logger();
@@ -80,6 +86,10 @@ public class Engine {
 	// key mapper variables
 
 	private KeyMapper keyMapper = null;
+	
+	// audio and music
+	
+	private Audio oggStream = null;
 
 	public void logging_init() {
 		logger.setLogLevel(logger.LL_VERBOSE);
@@ -166,6 +176,16 @@ public class Engine {
 			logger.log(ex.getMessage());
 		}
 		
+		// add sounds
+		
+		try {
+			logger.log("loading sounds");
+			oggStream = AudioLoader.getStreamingAudio("OGG", ResourceLoader.getResource("assets/audio/infini1.ogg"));
+		} catch(Exception ex) {
+			logger.log("error: sounds not loaded");
+			logger.log(ex.getMessage());
+		}
+		
 		// add camera
 		
 		logger.log("adding camera, setting position");
@@ -203,7 +223,14 @@ public class Engine {
 	public void run() {
 		// TODO Auto-generated method stub
 		logger.log("Engine running");
+		// TODO test sound
+		oggStream.playAsMusic(1.0f, 1.0f, true);
 		gameLoop();
+	}
+	
+	public void update() {
+		// TODO Auto-generated method stub
+		
 	}
 
 	public void gameLoop() {
@@ -211,6 +238,7 @@ public class Engine {
 		logger.log("Game loop");
 		
 		while(!org.lwjgl.opengl.Display.isCloseRequested()) {
+			update();
 			buffer.clear(java.awt.Color.BLACK);
 			theWorld.renderScene(buffer);
 			theWorld.draw(buffer);
@@ -226,6 +254,8 @@ public class Engine {
 		
 		buffer.disableRenderer(IRenderer.RENDERER_OPENGL);
 		buffer.dispose();
+		oggStream.stop();
+		AL.destroy();
 	}
 
 }
