@@ -13,7 +13,7 @@ import com.threed.jpct.util.*;
 
 public class Engine {
 
-	public static Logger logger = new Logger();
+	public Logger logger = new Logger();
 
 	private boolean fullscreen = false;
 	private boolean openGL = false;
@@ -28,6 +28,7 @@ public class Engine {
 	private Object3D phage = null;
 	private Object3D dna = null;
 	private Object3D mitochondria = null;
+	
 	private FrameBuffer buffer = null;
 	private World theWorld = null;
 	private TextureManager texMan = null;
@@ -35,7 +36,7 @@ public class Engine {
 
 	// textures
 
-	private Texture numbers = null;
+	private Texture[] textures[] = null;
 
 	// player location
 
@@ -44,8 +45,8 @@ public class Engine {
 
 	// framebuffer size
 
-	private int width = 1024;
-	private int height = 768;
+	private int width = 800;
+	private int height = 600;
 
 	// AWT variables
 
@@ -105,13 +106,13 @@ public class Engine {
 
 		// set up lighting
 
-		Config.fadeoutLight = true;
+		Config.fadeoutLight = false;
 		Config.linearDiv = 100;
 		Config.lightDiscardDistance = 350;
 		theWorld.getLights().setOverbrightLighting(
 				Lights.OVERBRIGHT_LIGHTING_DISABLED);
 		theWorld.getLights().setRGBScale(Lights.RGB_SCALE_2X);
-		theWorld.setAmbientLight(10, 15, 15);
+		theWorld.setAmbientLight(100, 150, 150);
 
 		// place light sources
 
@@ -121,7 +122,65 @@ public class Engine {
 
 		theWorld.setFogging(World.FOGGING_ENABLED);
 		theWorld.setFogParameters(500, 0, 0, 0);
-		Config.farPlane = 500;
+		
+		// add textures
+		
+		try {
+			logger.log("loading textures");
+			Texture wallTex = null;
+//			texMan.getInstance().addTexture("textures/artery_cells.jpg", wallTex);
+			texMan.getInstance().addTexture("wallTex", new Texture("assets/textures/artery_cells.jpg"));
+			Texture cells1Tex = null;
+//			texMan.getInstance().addTexture("textures/cells_test1.jpg", cells1Tex);
+			texMan.getInstance().addTexture("cells1Tex", new Texture("assets/textures/cells_test1.jpg"));
+			Texture cells2Tex = null;
+//			texMan.getInstance().addTexture("textures/cells_test2.jpg", cells2Tex);
+			texMan.getInstance().addTexture("cells2Tex", new Texture("assets/textures/cells_test2.jpg"));
+			Texture cells3Tex = null;
+//			texMan.getInstance().addTexture("textures/cells_test3.jpg", cells3Tex);
+			texMan.getInstance().addTexture("cells3Tex", new Texture("assets/textures/cells_test3.jpg"));
+			Texture cells4Tex = null;
+//			texMan.getInstance().addTexture("textures/cells_test4.jpg", cells4Tex);
+			texMan.getInstance().addTexture("cells4Tex", new Texture("assets/textures/cells_test4.jpg"));
+			Texture cells5Tex = null;
+//			texMan.getInstance().addTexture("textures/cells_test5.jpg", cells5Tex);
+			texMan.getInstance().addTexture("cells5Tex", new Texture("assets/textures/cells_test5.jpg"));
+			logger.log("finished loading textures");
+		} catch(Exception ex) {
+			logger.log("error: textures not loaded");
+			logger.log(ex.getMessage());
+		}
+		
+		// add models
+		
+		try {
+			logger.log("loading models");
+			playerShip = Primitives.getBox(12f, 2f);
+			playerShip.setTexture("wallTex");
+			playerShip.setEnvmapped(Object3D.ENVMAP_ENABLED);
+			playerShip.build();
+			theWorld.addObject(playerShip);
+			logger.log("finished loading models");
+		} catch(Exception ex) {
+			logger.log("error: models not loaded");
+			logger.log(ex.getMessage());
+		}
+		
+		// add camera
+		
+		logger.log("adding camera, setting position");
+		camera = theWorld.getCamera();
+		camera.setPosition(50, -50, -5);
+		camera.lookAt(playerShip.getTransformedCenter());
+		
+		// add buffer
+		
+		logger.log("adding framebuffer");
+		buffer = new FrameBuffer(width, height, FrameBuffer.SAMPLINGMODE_NORMAL);
+		buffer.disableRenderer(IRenderer.RENDERER_SOFTWARE);
+		buffer.enableRenderer(IRenderer.RENDERER_OPENGL);
+		
+		// now go to game loop
 
 	}
 
@@ -144,11 +203,29 @@ public class Engine {
 	public void run() {
 		// TODO Auto-generated method stub
 		logger.log("Engine running");
+		gameLoop();
 	}
 
 	public void gameLoop() {
 		// TODO Auto-generated method stub
 		logger.log("Game loop");
+		
+		while(!org.lwjgl.opengl.Display.isCloseRequested()) {
+			buffer.clear(java.awt.Color.BLACK);
+			theWorld.renderScene(buffer);
+			theWorld.draw(buffer);
+			buffer.update();
+			buffer.displayGLOnly();
+			try {
+				Thread.sleep(10);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		buffer.disableRenderer(IRenderer.RENDERER_OPENGL);
+		buffer.dispose();
 	}
 
 }
