@@ -20,6 +20,10 @@ import org.newdawn.slick.util.ResourceLoader;
 public class Engine {
 
 	public Logger logger = new Logger();
+	
+	// JPCT controllers
+	
+	private KeyMapper keyMap = null;
 
 	private boolean fullscreen = false;
 	private boolean openGL = false;
@@ -83,10 +87,6 @@ public class Engine {
 	private boolean forward = false;
 	private boolean back = false;
 
-	// key mapper variables
-
-	private KeyMapper keyMapper = null;
-	
 	// audio and music
 	
 	private Audio oggStream = null;
@@ -113,6 +113,20 @@ public class Engine {
 
 		theWorld = new World();
 		texMan = TextureManager.getInstance();
+		
+		// set up config
+		
+		Config.glVerbose = true;
+		Config.glAvoidTextureCopies = true;
+		Config.maxPolysVisible = 1000;
+		Config.glColorDepth = 24;
+		Config.glFullscreen = false;
+		Config.farPlane = 4000;
+		Config.glShadowZBias = 0.8f;
+		Config.lightMul = 1;
+		Config.collideOffset = 500;
+		Config.glTrilinear = true;
+		org.lwjgl.opengl.Display.setTitle("DeepSea JPCT");
 
 		// set up lighting
 
@@ -165,10 +179,12 @@ public class Engine {
 		
 		try {
 			logger.log("loading models");
-			playerShip = Primitives.getBox(12f, 2f);
+			playerShip = Primitives.getSphere(10f);
+//			playerShip = Loader.loadOBJ("assets/models/WarpShip.obj", null, .1f)[0];
 			playerShip.setTexture("wallTex");
 			playerShip.setEnvmapped(Object3D.ENVMAP_ENABLED);
 			playerShip.build();
+			playerShip.compile();
 			theWorld.addObject(playerShip);
 			logger.log("finished loading models");
 		} catch(Exception ex) {
@@ -208,29 +224,51 @@ public class Engine {
 		// TODO Auto-generated method stub
 		logger.log("Engine init");
 
-		Config.glVerbose = true;
-		Config.glAvoidTextureCopies = true;
-		Config.maxPolysVisible = 1000;
-		Config.glColorDepth = 24;
-		Config.glFullscreen = false;
-		Config.farPlane = 4000;
-		Config.glShadowZBias = 0.8f;
-		Config.lightMul = 1;
-		Config.collideOffset = 500;
-		Config.glTrilinear = true;
+		keyMap = new KeyMapper();
 	}
 
 	public void run() {
 		// TODO Auto-generated method stub
 		logger.log("Engine running");
-		// TODO test sound
+		
 		oggStream.playAsMusic(1.0f, 1.0f, true);
 		gameLoop();
 	}
 	
 	public void update() {
 		// TODO Auto-generated method stub
+		SoundStore.get().poll(0);
+
+		KeyState state = keyMap.poll();
 		
+		// keyboard controls
+		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_LEFT) {
+			left = true;
+			logger.log("key pressed: left");
+		} else left = false;
+		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_RIGHT) {
+			right = true;
+			logger.log("key pressed: right");
+		} else right = false;
+		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_UP) {
+			up = true;
+			logger.log("key pressed: up");
+		} else up = false;
+		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_DOWN) {
+			down = true;
+			logger.log("key pressed: down");
+		} else down = false;
+		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_W) {
+			forward = true;
+			logger.log("key pressed: forward");
+		} else forward = false;
+		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_S) {
+			back = true;
+			logger.log("key pressed: back");
+		} else back = false;
+		
+		// exit game
+		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_ESCAPE) gameShutdown();
 	}
 
 	public void gameLoop() {
@@ -239,23 +277,29 @@ public class Engine {
 		
 		while(!org.lwjgl.opengl.Display.isCloseRequested()) {
 			update();
-			buffer.clear(java.awt.Color.BLACK);
+			buffer.clear(java.awt.Color.WHITE);
 			theWorld.renderScene(buffer);
 			theWorld.draw(buffer);
 			buffer.update();
 			buffer.displayGLOnly();
-			try {
-				Thread.sleep(10);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+//			try {
+//				Thread.sleep(10);
+//			} catch (InterruptedException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
 		}
 		
+		gameShutdown();
+	}
+	
+	public void gameShutdown() {
 		buffer.disableRenderer(IRenderer.RENDERER_OPENGL);
 		buffer.dispose();
 		oggStream.stop();
+		keyMap.destroy();
 		AL.destroy();
+		System.exit(0);
 	}
 
 }
