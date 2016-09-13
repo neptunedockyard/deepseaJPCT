@@ -11,6 +11,7 @@ import java.awt.image.*;
 import com.threed.jpct.*;
 import com.threed.jpct.util.*;
 
+import org.lwjgl.input.Mouse;
 import org.lwjgl.openal.AL;
 import org.newdawn.slick.openal.Audio;
 import org.newdawn.slick.openal.AudioLoader;
@@ -34,6 +35,7 @@ public class Engine {
 	private Object3D playerShip = null;
 	private Object3D cell = null;
 	private Object3D virus = null;
+	private Object3D microbe = null;
 	private Object3D bacteria = null;
 	private Object3D phage = null;
 	private Object3D dna = null;
@@ -52,7 +54,7 @@ public class Engine {
 
 	private Matrix playerDirection = new Matrix();
 	private SimpleVector tempVector = new SimpleVector();
-
+	
 	// framebuffer size
 
 	private int width = 800;
@@ -86,6 +88,7 @@ public class Engine {
 	private boolean down = false;
 	private boolean forward = false;
 	private boolean back = false;
+	private boolean zoomLock = false;
 
 	// audio and music
 	
@@ -127,6 +130,10 @@ public class Engine {
 		Config.collideOffset = 500;
 		Config.glTrilinear = true;
 		org.lwjgl.opengl.Display.setTitle("DeepSea JPCT");
+		
+		// set up mouse
+		
+		Mouse.setGrabbed(true);
 
 		// set up lighting
 
@@ -175,17 +182,37 @@ public class Engine {
 			logger.log(ex.getMessage());
 		}
 		
-		// add models
+		// add model
 		
 		try {
-			logger.log("loading models");
-			playerShip = Primitives.getSphere(10f);
+			logger.log("loading player model");
+			playerShip = Primitives.getSphere(2f);
 //			playerShip = Loader.loadOBJ("assets/models/WarpShip.obj", null, .1f)[0];
+//			playerShip = Loader.load3DS("assets/models/virus_smooth.3ds", 1f)[0];
 			playerShip.setTexture("wallTex");
 			playerShip.setEnvmapped(Object3D.ENVMAP_ENABLED);
 			playerShip.build();
 			playerShip.compile();
 			theWorld.addObject(playerShip);
+			
+			logger.log("loading virus model");
+			virus = Loader.load3DS("assets/models/virus_smooth.3ds", 3f)[0];
+			virus.setTexture("cells4Tex");
+			virus.setEnvmapped(Object3D.ENVMAP_ENABLED);
+			virus.build();
+			virus.compile();
+			virus.translate(10f, 10f, 10f);
+			theWorld.addObject(virus);
+			
+			logger.log("loading microbe model");
+			microbe = Loader.load3DS("assets/models/microbe_smooth.3ds", 3f)[0];
+			microbe.setTexture("cells4Tex");
+			microbe.setEnvmapped(Object3D.ENVMAP_ENABLED);
+			microbe.build();
+			microbe.compile();
+			microbe.translate(-10f, -10f, -10f);
+			theWorld.addObject(microbe);
+			
 			logger.log("finished loading models");
 		} catch(Exception ex) {
 			logger.log("error: models not loaded");
@@ -238,37 +265,49 @@ public class Engine {
 	public void update() {
 		// TODO Auto-generated method stub
 		SoundStore.get().poll(0);
+		
+		cameraUpdate();
 
 		KeyState state = keyMap.poll();
 		
 		// keyboard controls
 		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_LEFT) {
 			left = true;
+			camera.setPosition(camera.getPosition().x-10, 0, 0);
 			logger.log("key pressed: left");
 		} else left = false;
 		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_RIGHT) {
 			right = true;
+			camera.setPosition(camera.getPosition().x+10, 0, 0);
 			logger.log("key pressed: right");
 		} else right = false;
 		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_UP) {
 			up = true;
+			camera.setPosition(0, camera.getPosition().y-10, 0);
 			logger.log("key pressed: up");
 		} else up = false;
 		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_DOWN) {
 			down = true;
+			camera.setPosition(0, camera.getPosition().y+10, 0);
 			logger.log("key pressed: down");
 		} else down = false;
 		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_W) {
 			forward = true;
+			camera.setPosition(0, 0, camera.getPosition().z-10);
 			logger.log("key pressed: forward");
 		} else forward = false;
 		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_S) {
 			back = true;
+			camera.setPosition(0, 0, camera.getPosition().z+10);
 			logger.log("key pressed: back");
 		} else back = false;
 		
+		// lock in camera
+		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_L) zoomLock ^= true;
+		
 		// exit game
 		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_ESCAPE) gameShutdown();
+		
 	}
 
 	public void gameLoop() {
@@ -300,6 +339,21 @@ public class Engine {
 		keyMap.destroy();
 		AL.destroy();
 		System.exit(0);
+	}
+	
+	public void cameraUpdate() {
+		int dx = Mouse.getDX();
+		int dy = Mouse.getDY();
+		
+		if(dx != 0) {
+			camera.rotateAxis(camera.getYAxis(), dx / 500f);
+		}
+		if(dy != 0) {
+			camera.rotateX(dy / 500f);
+		}
+		if(zoomLock) {
+			camera.lookAt(playerShip.getTransformedCenter());
+		}
 	}
 
 }
