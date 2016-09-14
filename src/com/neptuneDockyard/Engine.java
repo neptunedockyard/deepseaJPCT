@@ -45,6 +45,7 @@ public class Engine {
 	private World theWorld = null;
 	private TextureManager texMan = null;
 	private Camera camera = null;
+	private SkyBox skyBox = null;
 
 	// textures
 
@@ -213,6 +214,7 @@ public class Engine {
 			microbe.translate(-10f, -10f, -10f);
 			theWorld.addObject(microbe);
 			
+			Loader.clearCache();
 			logger.log("finished loading models");
 		} catch(Exception ex) {
 			logger.log("error: models not loaded");
@@ -228,6 +230,11 @@ public class Engine {
 			logger.log("error: sounds not loaded");
 			logger.log(ex.getMessage());
 		}
+		
+		// add skybox
+		
+		skyBox = new SkyBox("cells1Tex", "cells1Tex", "cells1Tex", "cells1Tex", "cells1Tex", "cells1Tex", 100f);
+		skyBox.compile();
 		
 		// add camera
 		
@@ -273,33 +280,33 @@ public class Engine {
 		// keyboard controls
 		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_LEFT) {
 			left = true;
-			camera.setPosition(camera.getPosition().x-10, 0, 0);
-			logger.log("key pressed: left");
+			camera.setPosition(camera.getSideVector().normalize().calcAdd(camera.getPosition().reflect(camera.getPosition())));
+			logger.log("key pressed: left " + camera.getPosition().toString());
 		} else left = false;
 		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_RIGHT) {
 			right = true;
-			camera.setPosition(camera.getPosition().x+10, 0, 0);
-			logger.log("key pressed: right");
+			camera.setPosition(camera.getSideVector().normalize().calcAdd(camera.getPosition()));
+			logger.log("key pressed: right " + camera.getPosition().toString());
 		} else right = false;
 		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_UP) {
 			up = true;
-			camera.setPosition(0, camera.getPosition().y-10, 0);
-			logger.log("key pressed: up");
+			camera.setPosition(camera.getUpVector().normalize().calcAdd(camera.getPosition()));
+			logger.log("key pressed: up " + camera.getPosition().toString());
 		} else up = false;
 		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_DOWN) {
 			down = true;
-			camera.setPosition(0, camera.getPosition().y+10, 0);
-			logger.log("key pressed: down");
+			camera.setPosition(camera.getUpVector().normalize().calcSub(camera.getPosition()));
+			logger.log("key pressed: down " + camera.getPosition().toString());
 		} else down = false;
 		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_W) {
 			forward = true;
-			camera.setPosition(0, 0, camera.getPosition().z-10);
-			logger.log("key pressed: forward");
+			camera.setPosition(camera.getDirection().normalize().calcAdd(camera.getPosition()));
+			logger.log("key pressed: forward " + camera.getPosition().toString());
 		} else forward = false;
 		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_S) {
 			back = true;
-			camera.setPosition(0, 0, camera.getPosition().z+10);
-			logger.log("key pressed: back");
+			camera.setPosition(camera.getDirection().normalize().calcSub(camera.getPosition()));
+			logger.log("key pressed: back " + camera.getPosition().toString());
 		} else back = false;
 		
 		// lock in camera
@@ -307,7 +314,6 @@ public class Engine {
 		
 		// exit game
 		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_ESCAPE) gameShutdown();
-		
 	}
 
 	public void gameLoop() {
@@ -317,6 +323,7 @@ public class Engine {
 		while(!org.lwjgl.opengl.Display.isCloseRequested()) {
 			update();
 			buffer.clear(java.awt.Color.WHITE);
+			skyBox.render(theWorld, buffer);
 			theWorld.renderScene(buffer);
 			theWorld.draw(buffer);
 			buffer.update();
