@@ -25,6 +25,7 @@ public class Engine {
 	// JPCT controllers
 	
 	private KeyMapper keyMap = null;
+	private MouseMapper mouseMap = null;
 
 	private boolean fullscreen = false;
 	private boolean openGL = false;
@@ -46,6 +47,7 @@ public class Engine {
 	private TextureManager texMan = null;
 	private Camera camera = null;
 	private SkyBox skyBox = null;
+	private Object3D skyDome = null;
 
 	// textures
 
@@ -232,9 +234,19 @@ public class Engine {
 		}
 		
 		// add skybox
-		
-		skyBox = new SkyBox("cells1Tex", "cells1Tex", "cells1Tex", "cells1Tex", "cells1Tex", "cells1Tex", 100f);
+		// TODO figure out skybox issue
+		skyBox = new SkyBox("cells5Tex", "cells5Tex", "cells5Tex", "cells5Tex", "cells2Tex", "cells2Tex", 1000f);
 		skyBox.compile();
+		
+//		skyDome = Primitives.getSphere(100f);
+//		skyDome.setTexture("cells1Tex");
+//		skyDome.setEnvmapped(Object3D.ENVMAP_ENABLED);
+//		skyDome.invert();
+//		skyDome.setCulling(false);
+//		skyDome.calcTextureWrapSpherical();
+//		skyDome.build();
+//		skyDome.compile();
+//		theWorld.addObject(skyDome);
 		
 		// add camera
 		
@@ -259,6 +271,7 @@ public class Engine {
 		logger.log("Engine init");
 
 		keyMap = new KeyMapper();
+		mouseMap = new MouseMapper(camera, playerShip);
 	}
 
 	public void run() {
@@ -273,7 +286,7 @@ public class Engine {
 		// TODO Auto-generated method stub
 		SoundStore.get().poll(0);
 		
-		cameraUpdate();
+		mouseMap.cameraUpdate();
 
 		KeyState state = keyMap.poll();
 		
@@ -322,9 +335,12 @@ public class Engine {
 		
 		while(!org.lwjgl.opengl.Display.isCloseRequested()) {
 			update();
-			buffer.clear(java.awt.Color.WHITE);
+			buffer.clear(java.awt.Color.BLACK);
+			// render skybox
 			skyBox.render(theWorld, buffer);
+			
 			theWorld.renderScene(buffer);
+			theWorld.drawWireframe(buffer, java.awt.Color.BLACK);
 			theWorld.draw(buffer);
 			buffer.update();
 			buffer.displayGLOnly();
@@ -348,19 +364,19 @@ public class Engine {
 		System.exit(0);
 	}
 	
-	public void cameraUpdate() {
-		int dx = Mouse.getDX();
-		int dy = Mouse.getDY();
-		
-		if(dx != 0) {
-			camera.rotateAxis(camera.getYAxis(), dx / 500f);
-		}
-		if(dy != 0) {
-			camera.rotateX(dy / 500f);
-		}
-		if(zoomLock) {
-			camera.lookAt(playerShip.getTransformedCenter());
-		}
-	}
+//	public void cameraUpdate() {
+//		int dx = Mouse.getDX();
+//		int dy = Mouse.getDY();
+//		
+//		if(dx != 0) {
+//			camera.rotateAxis(camera.getYAxis(), dx / 500f);
+//		}
+//		if(dy != 0) {
+//			camera.rotateX(dy / 500f);
+//		}
+//		if(zoomLock) {
+//			camera.lookAt(playerShip.getTransformedCenter());
+//		}
+//	}
 
 }
