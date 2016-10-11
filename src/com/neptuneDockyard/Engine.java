@@ -26,6 +26,11 @@ public class Engine {
 	
 	private KeyMapper keyMap = null;
 	private MouseMapper mouseMap = null;
+	private KeyState state = null;
+	
+	// private controllers
+	
+	private Chunk chunkCon = null;
 
 	private boolean fullscreen = false;
 	private boolean openGL = false;
@@ -48,6 +53,11 @@ public class Engine {
 	private Camera camera = null;
 	private SkyBox skyBox = null;
 	private Object3D skyDome = null;
+	
+	//TODO remove test object
+	private Object3D testPlane = null;
+	private Projector projector = null;
+	private ShadowHelper sh = null;
 
 	// textures
 
@@ -63,26 +73,6 @@ public class Engine {
 	private int width = 800;
 	private int height = 600;
 
-	// AWT variables
-
-	private Frame frame = null;
-	private Graphics gFrame = null;
-	private BufferStrategy buffStrat = null;
-	private GraphicsDevice device = null;
-	private int titleBarHeight = 0;
-	private int leftBorderWidth = 0;
-	private int switchMode = 0;
-
-	private int fps;
-	private int lastFps;
-	private long totalFps;
-
-	private int pps;
-	private int lastPps;
-
-	private boolean isIdle = false;
-	private boolean exit = false;
-
 	// key flags
 
 	private boolean left = false;
@@ -92,28 +82,23 @@ public class Engine {
 	private boolean forward = false;
 	private boolean back = false;
 	private boolean zoomLock = false;
+	private boolean sprint = false;
+	private float camSpeed = (float) 0.1;
 
 	// audio and music
 	
 	private Audio oggStream = null;
 
 	public void logging_init() {
-		logger.setLogLevel(logger.LL_VERBOSE);
-		logger.log("Log level set: " + Integer.toString(logger.getLogLevel()));
+		Logger.setLogLevel(Logger.LL_VERBOSE);
+		Logger.log("Log level set: " + Integer.toString(Logger.getLogLevel()));
 	}
 
 	public Engine(String[] args) {
-		// TODO Auto-generated constructor stub
-		// evaluate args here
+		// TODO evaluate args here
 
 		logging_init();
 		Logger.log("Starting Engine");
-
-		isIdle = false;
-		switchMode = 0;
-		totalFps = 0;
-		fps = 0;
-		lastFps = 0;
 
 		// init world instance and get TextureManager
 
@@ -140,9 +125,9 @@ public class Engine {
 
 		// set up lighting
 
-		Config.fadeoutLight = false;
+		Config.fadeoutLight = true;
 		Config.linearDiv = 100;
-		Config.lightDiscardDistance = 350;
+		Config.lightDiscardDistance = 35;
 		theWorld.getLights().setOverbrightLighting(
 				Lights.OVERBRIGHT_LIGHTING_DISABLED);
 		theWorld.getLights().setRGBScale(Lights.RGB_SCALE_2X);
@@ -150,45 +135,46 @@ public class Engine {
 
 		// place light sources
 
-		theWorld.addLight(new SimpleVector(0, 0, 0), 5, 10, 15);
+		theWorld.addLight(new SimpleVector(-10, -10, -10), 5, 10, 15);
 
 		// add fog
 
 		theWorld.setFogging(World.FOGGING_ENABLED);
-		theWorld.setFogParameters(500, 0, 0, 0);
+		theWorld.setFogParameters(100, 0, 0, 0);
 		
 		// add textures
 		
 		try {
-			logger.log("loading textures");
+			Logger.log("loading textures");
 			Texture wallTex = null;
 //			texMan.getInstance().addTexture("textures/artery_cells.jpg", wallTex);
-			texMan.getInstance().addTexture("wallTex", new Texture("assets/textures/artery_cells.jpg"));
+			TextureManager.getInstance().addTexture("wallTex", new Texture("assets/textures/artery_cells.jpg"));
 			Texture cells1Tex = null;
 //			texMan.getInstance().addTexture("textures/cells_test1.jpg", cells1Tex);
-			texMan.getInstance().addTexture("cells1Tex", new Texture("assets/textures/cells_test1.jpg"));
+			TextureManager.getInstance().addTexture("cells1Tex", new Texture("assets/textures/cells_test1.jpg"));
 			Texture cells2Tex = null;
 //			texMan.getInstance().addTexture("textures/cells_test2.jpg", cells2Tex);
-			texMan.getInstance().addTexture("cells2Tex", new Texture("assets/textures/cells_test2.jpg"));
+			TextureManager.getInstance().addTexture("cells2Tex", new Texture("assets/textures/cells_test2.jpg"));
 			Texture cells3Tex = null;
 //			texMan.getInstance().addTexture("textures/cells_test3.jpg", cells3Tex);
-			texMan.getInstance().addTexture("cells3Tex", new Texture("assets/textures/cells_test3.jpg"));
+			TextureManager.getInstance().addTexture("cells3Tex", new Texture("assets/textures/cells_test3.jpg"));
 			Texture cells4Tex = null;
 //			texMan.getInstance().addTexture("textures/cells_test4.jpg", cells4Tex);
-			texMan.getInstance().addTexture("cells4Tex", new Texture("assets/textures/cells_test4.jpg"));
+			TextureManager.getInstance().addTexture("cells4Tex", new Texture("assets/textures/cells_test4.jpg"));
 			Texture cells5Tex = null;
 //			texMan.getInstance().addTexture("textures/cells_test5.jpg", cells5Tex);
-			texMan.getInstance().addTexture("cells5Tex", new Texture("assets/textures/cells_test5.jpg"));
-			logger.log("finished loading textures");
+			TextureManager.getInstance().addTexture("cells5Tex", new Texture("assets/textures/cells_test5.jpg"));
+			Logger.log("finished loading textures");
 		} catch(Exception ex) {
-			logger.log("error: textures not loaded");
-			logger.log(ex.getMessage());
+			Logger.log("error: textures not loaded");
+			Logger.log(ex.getMessage());
 		}
 		
 		// add model
 		
 		try {
-			logger.log("loading player model");
+			//load player model
+			Logger.log("loading player model");
 			playerShip = Primitives.getSphere(2f);
 //			playerShip = Loader.loadOBJ("assets/models/WarpShip.obj", null, .1f)[0];
 //			playerShip = Loader.load3DS("assets/models/virus_smooth.3ds", 1f)[0];
@@ -198,8 +184,10 @@ public class Engine {
 			playerShip.compile();
 			theWorld.addObject(playerShip);
 			
-			logger.log("loading virus model");
-			virus = Loader.load3DS("assets/models/virus_smooth.3ds", 3f)[0];
+			//load enemy model
+			Logger.log("loading virus model");
+			//virus = Loader.load3DS("assets/models/virus_smooth.3ds", 3f)[0];
+			virus = Primitives.getEllipsoid(2f, 3f);
 			virus.setTexture("cells4Tex");
 			virus.setEnvmapped(Object3D.ENVMAP_ENABLED);
 			virus.build();
@@ -207,30 +195,59 @@ public class Engine {
 			virus.translate(10f, 10f, 10f);
 			theWorld.addObject(virus);
 			
-			logger.log("loading microbe model");
+			//load enemy model
+			Logger.log("loading microbe model");
 			microbe = Loader.load3DS("assets/models/microbe_smooth.3ds", 3f)[0];
 			microbe.setTexture("cells4Tex");
 			microbe.setEnvmapped(Object3D.ENVMAP_ENABLED);
 			microbe.build();
 			microbe.compile();
 			microbe.translate(-10f, -10f, -10f);
-			theWorld.addObject(microbe);
+			//theWorld.addObject(microbe);
+			
+			//load surface
+			testPlane = Primitives.getPlane(20, 30);
+			testPlane.rotateX((float) (Math.PI/2f));
+			testPlane.setSpecularLighting(true);
+			testPlane.setCollisionMode(Object3D.COLLISION_CHECK_OTHERS);
+			testPlane.setTexture("cells3Tex");
+			testPlane.compileAndStrip();
+			Mesh planeMesh = testPlane.getMesh();
+			planeMesh.setVertexController(new Mod(), false);
+			planeMesh.applyVertexController();
+			planeMesh.removeVertexController();
+			testPlane.translate(100, 100, 100);
+			theWorld.addObject(testPlane);
+			
+			//load shadows and projector
+			projector = new Projector();
+			projector.setFOV(1.5f);
+			projector.setYFOV(1.5f);
+			sh = new ShadowHelper(theWorld, buffer, projector, 2048);
+			sh.setCullingMode(false);
+			sh.setAmbientLight(new Color(30, 30, 30));
+			sh.setLightMode(true);
+			sh.setBorder(1);
+			sh.addCaster(virus);
+			sh.addCaster(playerShip);
+			sh.addReceiver(testPlane);
 			
 			Loader.clearCache();
-			logger.log("finished loading models");
+			Logger.log("finished loading models");
 		} catch(Exception ex) {
-			logger.log("error: models not loaded");
-			logger.log(ex.getMessage());
+			//TODO fix loader error, check if model loaded instead of the try catch method
+			Logger.log("error: models not loaded");
+			Logger.log(ex.getMessage());
 		}
 		
 		// add sounds
 		
 		try {
-			logger.log("loading sounds");
+			Logger.log("loading sounds");
 			oggStream = AudioLoader.getStreamingAudio("OGG", ResourceLoader.getResource("assets/audio/infini1.ogg"));
 		} catch(Exception ex) {
-			logger.log("error: sounds not loaded");
-			logger.log(ex.getMessage());
+			Logger.log("error: sounds not loaded");
+			Logger.log(ex.getMessage());
 		}
 		
 		// add skybox
@@ -250,92 +267,110 @@ public class Engine {
 		
 		// add camera
 		
-		logger.log("adding camera, setting position");
+		Logger.log("adding camera, setting position");
 		camera = theWorld.getCamera();
+		camera.setFOV(80);
 		camera.setPosition(50, -50, -5);
 		camera.lookAt(playerShip.getTransformedCenter());
 		
 		// add buffer
 		
-		logger.log("adding framebuffer");
+		Logger.log("adding framebuffer");
 		buffer = new FrameBuffer(width, height, FrameBuffer.SAMPLINGMODE_NORMAL);
 		buffer.disableRenderer(IRenderer.RENDERER_SOFTWARE);
 		buffer.enableRenderer(IRenderer.RENDERER_OPENGL);
 		
 		// now go to game loop
-
 	}
 
 	public void init() {
-		// TODO Auto-generated method stub
-		logger.log("Engine init");
+		Logger.log("Engine init");
 
 		keyMap = new KeyMapper();
 		mouseMap = new MouseMapper(camera, playerShip);
 	}
 
 	public void run() {
-		// TODO Auto-generated method stub
-		logger.log("Engine running");
+		Logger.log("Engine running");
 		
-		oggStream.playAsMusic(1.0f, 1.0f, true);
+		//oggStream.playAsMusic(1.0f, 1.0f, true);
 		gameLoop();
 	}
 	
 	public void update() {
-		// TODO Auto-generated method stub
 		SoundStore.get().poll(0);
 		
 		mouseMap.cameraUpdate();
+		updatePosition();
 
-		KeyState state = keyMap.poll();
+		while((state = keyMap.poll()) != KeyState.NONE) {
 		
-		// keyboard controls
-		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_LEFT) {
-			left = true;
-			camera.setPosition(camera.getSideVector().normalize().calcAdd(camera.getPosition().reflect(camera.getPosition())));
-			logger.log("key pressed: left " + camera.getPosition().toString());
-		} else left = false;
-		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_RIGHT) {
-			right = true;
-			camera.setPosition(camera.getSideVector().normalize().calcAdd(camera.getPosition()));
-			logger.log("key pressed: right " + camera.getPosition().toString());
-		} else right = false;
-		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_UP) {
-			up = true;
-			camera.setPosition(camera.getUpVector().normalize().calcAdd(camera.getPosition()));
-			logger.log("key pressed: up " + camera.getPosition().toString());
-		} else up = false;
-		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_DOWN) {
-			down = true;
-			camera.setPosition(camera.getUpVector().normalize().calcSub(camera.getPosition()));
-			logger.log("key pressed: down " + camera.getPosition().toString());
-		} else down = false;
-		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_W) {
-			forward = true;
-			camera.setPosition(camera.getDirection().normalize().calcAdd(camera.getPosition()));
-			logger.log("key pressed: forward " + camera.getPosition().toString());
-		} else forward = false;
-		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_S) {
-			back = true;
-			camera.setPosition(camera.getDirection().normalize().calcSub(camera.getPosition()));
-			logger.log("key pressed: back " + camera.getPosition().toString());
-		} else back = false;
+			if(state.getKeyCode() == KeyEvent.VK_A && state.getState() == KeyState.PRESSED) {
+				left = state.getState();
+				Logger.log("key pressed: a " + camera.getPosition().toString());
+			} else if(state.getKeyCode() == KeyEvent.VK_A && state.getState() == KeyState.RELEASED) {
+				left = false;
+				Logger.log("key released: a " + camera.getPosition().toString());
+			}
+			if(state.getKeyCode() == KeyEvent.VK_D && state.getState() == KeyState.PRESSED) {
+				right = state.getState();
+				Logger.log("key pressed: d " + camera.getPosition().toString());
+			} else if(state.getKeyCode() == KeyEvent.VK_D && state.getState() == KeyState.RELEASED) {
+				right = false;
+				Logger.log("key released: d " + camera.getPosition().toString());
+			}
+			if(state.getKeyCode() == KeyEvent.VK_SPACE && state.getState() == KeyState.PRESSED) {
+				up = state.getState();
+				Logger.log("key pressed: space " + camera.getPosition().toString());
+			} else if(state.getKeyCode() == KeyEvent.VK_SPACE && state.getState() == KeyState.RELEASED) {
+				up = false;
+				Logger.log("key released: space " + camera.getPosition().toString());
+			}
+			if(state.getKeyCode() == KeyEvent.VK_Z && state.getState() == KeyState.PRESSED) {
+				down = state.getState();
+				Logger.log("key pressed: z " + camera.getPosition().toString());
+			} else if(state.getKeyCode() == KeyEvent.VK_Z && state.getState() == KeyState.RELEASED) {
+				down = false;
+				Logger.log("key released: z " + camera.getPosition().toString());
+			}
+			if(state.getKeyCode() == KeyEvent.VK_W && state.getState() == KeyState.PRESSED) {
+				forward = state.getState();
+				Logger.log("key pressed: w " + camera.getPosition().toString());
+			} else if(state.getKeyCode() == KeyEvent.VK_W && state.getState() == KeyState.RELEASED) {
+				forward = false;
+				Logger.log("key released: w " + camera.getPosition().toString());
+			}
+			if(state.getKeyCode() == KeyEvent.VK_S && state.getState() == KeyState.PRESSED) {
+				back = state.getState();
+				Logger.log("key pressed: s " + camera.getPosition().toString());
+			} else if(state.getKeyCode() == KeyEvent.VK_S && state.getState() == KeyState.RELEASED) {
+				back = false;
+				Logger.log("key released: s " + camera.getPosition().toString());
+			}
+			if(state.getKeyCode() == KeyEvent.VK_SHIFT && state.getState() == KeyState.PRESSED) {
+				sprint = state.getState();
+				Logger.log("key pressed: shift " + camera.getPosition().toString());
+			} else if(state.getKeyCode() == KeyEvent.VK_SHIFT && state.getState() == KeyState.RELEASED) {
+				sprint = false;
+				Logger.log("key released: shift " + camera.getPosition().toString());
+			}
+			
+			// lock in camera
+			if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_L) zoomLock ^= true;
+			
+			// exit game
+			if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_ESCAPE) gameShutdown();
+		}
 		
-		// lock in camera
-		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_L) zoomLock ^= true;
-		
-		// exit game
-		if(state.getState() == KeyState.PRESSED && state.getKeyCode() == KeyEvent.VK_ESCAPE) gameShutdown();
 	}
 
 	public void gameLoop() {
-		// TODO Auto-generated method stub
-		logger.log("Game loop");
+		Logger.log("Game loop");
 		
 		while(!org.lwjgl.opengl.Display.isCloseRequested()) {
 			update();
 			buffer.clear(java.awt.Color.BLACK);
+			
 			// render skybox
 			skyBox.render(theWorld, buffer);
 			
@@ -347,7 +382,6 @@ public class Engine {
 //			try {
 //				Thread.sleep(10);
 //			} catch (InterruptedException e) {
-//				// TODO Auto-generated catch block
 //				e.printStackTrace();
 //			}
 		}
@@ -364,19 +398,20 @@ public class Engine {
 		System.exit(0);
 	}
 	
-//	public void cameraUpdate() {
-//		int dx = Mouse.getDX();
-//		int dy = Mouse.getDY();
-//		
-//		if(dx != 0) {
-//			camera.rotateAxis(camera.getYAxis(), dx / 500f);
-//		}
-//		if(dy != 0) {
-//			camera.rotateX(dy / 500f);
-//		}
-//		if(zoomLock) {
-//			camera.lookAt(playerShip.getTransformedCenter());
-//		}
-//	}
+	public void updatePosition() {
+		if(sprint) camSpeed = 1;
+		else camSpeed = (float) 0.01;
+		
+		if(left) 	camera.moveCamera(Camera.CAMERA_MOVELEFT, 	camSpeed);
+		if(right) 	camera.moveCamera(Camera.CAMERA_MOVERIGHT, 	camSpeed);
+		if(up) 		camera.moveCamera(Camera.CAMERA_MOVEUP, 	camSpeed);
+		if(down) 	camera.moveCamera(Camera.CAMERA_MOVEDOWN, 	camSpeed);
+		if(forward) camera.moveCamera(Camera.CAMERA_MOVEIN, 	camSpeed);
+		if(back) 	camera.moveCamera(Camera.CAMERA_MOVEOUT, 	camSpeed);
+	}
 
+
+	public void getCollisions() {
+		
+	}
 }
